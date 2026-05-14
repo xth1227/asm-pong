@@ -14,6 +14,8 @@ const field = {
   width: canvas.width,
   height: canvas.height,
   winScore: 5,
+  baseBallSpeed: 6.4,
+  maxBallSpeed: 13.2,
 };
 
 const keys = new Set();
@@ -25,6 +27,8 @@ const state = {
   over: false,
   paused: false,
   shake: 0,
+  hits: 0,
+  playerHits: 0,
   playerScore: 0,
   cpuScore: 0,
   player: { x: 34, y: 210, width: 16, height: 118, speed: 8.2 },
@@ -39,7 +43,7 @@ function clamp(value, min, max) {
 function resetBall(direction = 1) {
   state.ball.x = field.width / 2;
   state.ball.y = field.height / 2;
-  state.ball.vx = 6.4 * direction;
+  state.ball.vx = field.baseBallSpeed * direction;
   state.ball.vy = (Math.random() > 0.5 ? 1 : -1) * 4.2;
   state.ball.trail = [];
 }
@@ -57,6 +61,8 @@ function resetGame() {
   state.running = true;
   state.paused = false;
   state.shake = 0;
+  state.hits = 0;
+  state.playerHits = 0;
   particles.length = 0;
   pauseButton.textContent = "Pause";
   overlay.classList.add("hidden");
@@ -119,20 +125,22 @@ function moveCpu() {
   state.cpu.y = clamp(state.cpu.y, 18, field.height - state.cpu.height - 18);
 }
 
-function spawnImpact(x, y, direction, color) {
-  state.shake = 10;
+function spawnImpact(x, y, direction, color, isPowerHit = false) {
+  state.shake = isPowerHit ? 18 : 10;
+  const count = isPowerHit ? 42 : 18;
 
-  for (let i = 0; i < 18; i++) {
-    const spread = (Math.random() - 0.5) * 5.4;
-    const speed = 2.4 + Math.random() * 5.2;
+  for (let i = 0; i < count; i++) {
+    const angle = isPowerHit ? (Math.PI * 2 * i) / count : (Math.random() - 0.5) * 1.4;
+    const spread = isPowerHit ? Math.sin(angle) : (Math.random() - 0.5) * 5.4;
+    const speed = (isPowerHit ? 3.8 : 2.4) + Math.random() * (isPowerHit ? 7.4 : 5.2);
     particles.push({
       x,
       y,
-      vx: direction * speed,
-      vy: spread,
-      life: 1,
-      size: 2 + Math.random() * 3,
-      color,
+      vx: isPowerHit ? Math.cos(angle) * speed : direction * speed,
+      vy: spread * speed,
+      life: isPowerHit ? 1.25 : 1,
+      size: (isPowerHit ? 3 : 2) + Math.random() * (isPowerHit ? 4 : 3),
+      color: isPowerHit && i % 3 === 0 ? "#ffd166" : color,
     });
   }
 }
@@ -147,11 +155,20 @@ function hitPaddle(paddle) {
   }
 
   const offset = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2);
-  ball.vx = Math.sign(ball.vx) * -1 * Math.min(Math.abs(ball.vx) + 0.28, 10.5);
+  const isPlayerHit = paddle === state.player;
+  state.hits += 1;
+  if (isPlayerHit) {
+    state.playerHits += 1;
+  }
+
+  const speedBoost = 0.24 + Math.min(state.hits, 16) * 0.055;
+  const nextSpeed = Math.min(Math.abs(ball.vx) + speedBoost, field.maxBallSpeed);
+  ball.vx = Math.sign(ball.vx) * -1 * nextSpeed;
   ball.vy = offset * 7.4;
   ball.x = ball.vx > 0 ? paddle.x + paddle.width + ball.radius : paddle.x - ball.radius;
-  paddle.flash = 1;
-  spawnImpact(ball.x, ball.y, Math.sign(ball.vx), paddle === state.player ? "#5cff8d" : "#53d7ff");
+  const isPowerHit = isPlayerHit && state.playerHits >= 5;
+  paddle.flash = isPowerHit ? 1.45 : 1;
+  spawnImpact(ball.x, ball.y, Math.sign(ball.vx), isPlayerHit ? "#5cff8d" : "#53d7ff", isPowerHit);
   return true;
 }
 
@@ -194,10 +211,14 @@ function updateBall() {
 
   if (ball.x < -ball.radius) {
     state.cpuScore += 1;
+    state.hits = 0;
+    state.playerHits = 0;
     syncScore();
     state.cpuScore >= field.winScore ? finishGame("CPU") : resetBall(1);
   } else if (ball.x > field.width + ball.radius) {
     state.playerScore += 1;
+    state.hits = 0;
+    state.playerHits = 0;
     syncScore();
     state.playerScore >= field.winScore ? finishGame("PLAYER") : resetBall(-1);
   }

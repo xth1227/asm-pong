@@ -69,6 +69,8 @@ The `feature/collision-effects` branch adds paddle flash, screen shake, ball
 trail, and impact particles for Web UI collisions.
 The `feature/pause-control` branch adds keyboard and button pause/resume for
 the Web UI.
+The `feature/ramped-collision-effects` branch ramps ball speed on every paddle
+hit and upgrades player collisions after 5 hits.
 
 ## Why This Is A Good Small Assembly Project
 
