@@ -22,6 +22,16 @@ make
 ./asm_pong
 ```
 
+## Web UI
+
+Open `web/index.html` in a browser, or serve the folder locally:
+
+```bash
+python3 -m http.server 8000
+```
+
+Then visit `http://localhost:8000/web/`.
+
 ## Test
 
 ```bash
@@ -54,6 +64,7 @@ The `feature/visual-polish` branch adds a cleaner HUD, center line, bottom
 control hint, and centered win message.
 The `feature/stronger-cpu` branch makes the CPU react faster when the ball is
 moving toward it.
+The `feature/web-ui` branch adds a browser-playable Canvas version.
 
 ## Why This Is A Good Small Assembly Project
 
