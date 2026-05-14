@@ -17,6 +17,9 @@
 #define COLOR_PADDLE "\033[38;5;46m"
 #define COLOR_BALL "\033[38;5;203m"
 #define COLOR_SCORE "\033[38;5;81m"
+#define COLOR_CENTER "\033[38;5;238m"
+#define COLOR_DIM "\033[38;5;246m"
+#define COLOR_WIN "\033[1;38;5;220m"
 
 typedef struct {
     int ball_x;
@@ -93,6 +96,21 @@ static void move_ai_paddle(GameState *state) {
     }
 }
 
+static void print_centered_line(const char *text, const char *color) {
+    int len = (int) strlen(text);
+    int padding = (WIDTH - len) / 2;
+
+    if (padding < 0) {
+        padding = 0;
+    }
+
+    printf("%s", color);
+    for (int i = 0; i < padding; i++) {
+        putchar(' ');
+    }
+    printf("%s" COLOR_RESET "\n", text);
+}
+
 static void draw(const GameState *state) {
     char screen[HEIGHT][WIDTH + 1];
 
@@ -102,6 +120,8 @@ static void draw(const GameState *state) {
                 screen[y][x] = '-';
             } else if (x == 0 || x == state->width - 1) {
                 screen[y][x] = '|';
+            } else if (x == state->width / 2 && y % 2 == 0) {
+                screen[y][x] = ':';
             } else {
                 screen[y][x] = ' ';
             }
@@ -117,8 +137,11 @@ static void draw(const GameState *state) {
     screen[state->ball_y][state->ball_x] = 'O';
 
     printf("\033[H");
+    print_centered_line("ASM PONG", COLOR_SCORE);
     printf(
-        COLOR_SCORE "ASM Pong  player:%d  cpu:%d  quit:q" COLOR_RESET "\n",
+        COLOR_DIM "PLAYER" COLOR_RESET " %d  "
+        COLOR_BORDER "----------------" COLOR_RESET "  "
+        COLOR_DIM "CPU" COLOR_RESET " %d\n",
         state->left_score,
         state->right_score
     );
@@ -127,6 +150,8 @@ static void draw(const GameState *state) {
             char cell = screen[y][x];
             if (cell == '-' || cell == '|') {
                 printf(COLOR_BORDER "%c" COLOR_RESET, cell);
+            } else if (cell == ':') {
+                printf(COLOR_CENTER "%c" COLOR_RESET, cell);
             } else if (cell == '#') {
                 printf(COLOR_PADDLE "%c" COLOR_RESET, cell);
             } else if (cell == 'O') {
@@ -137,15 +162,17 @@ static void draw(const GameState *state) {
         }
         putchar('\n');
     }
+    print_centered_line("w/s move   r restart after win   q quit", COLOR_DIM);
     fflush(stdout);
 }
 
 static void draw_game_over(const GameState *state, int winner) {
+    char message[64];
+
     draw(state);
-    printf(
-        "\n" COLOR_SCORE "%s wins. Press r to restart or q to quit." COLOR_RESET "\n",
-        winner == 1 ? "Player" : "CPU"
-    );
+    snprintf(message, sizeof(message), "%s WINS", winner == 1 ? "PLAYER" : "CPU");
+    print_centered_line(message, COLOR_WIN);
+    print_centered_line("press r to restart or q to quit", COLOR_DIM);
     fflush(stdout);
 }
 

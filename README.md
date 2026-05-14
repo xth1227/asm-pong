@@ -36,7 +36,8 @@ make test
 - Quit: `q`
 
 The first side to reach 5 points wins the round.
-The terminal display uses ANSI colors for the ball, paddles, score, and border.
+The terminal display uses ANSI colors for the ball, paddles, score, border, and
+center line.
 
 ## Branch Idea
 
@@ -49,6 +50,8 @@ the player has a fairer chance.
 The `feature/terminal-colors` branch adds colored terminal rendering.
 The `test/pong-step` branch adds a small C test harness for the ARM64 assembly
 physics function.
+The `feature/visual-polish` branch adds a cleaner HUD, center line, bottom
+control hint, and centered win message.
 
 ## Why This Is A Good Small Assembly Project
 
