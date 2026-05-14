@@ -22,8 +22,8 @@ const field = {
   height: DESIGN_HEIGHT,
   scale: 1,
   winScore: 5,
-  baseBallSpeed: 6.4,
-  maxBallSpeed: 13.2,
+  baseBallSpeed: 7.8,
+  maxBallSpeed: 17,
 };
 
 const keys = new Set();
@@ -58,7 +58,7 @@ const state = {
   cpuScore: 0,
   player: { x: 34, y: 210, width: 16, height: 118, speed: 8.2 },
   cpu: { x: 910, y: 210, width: 16, height: 118, speed: 6.8 },
-  ball: { x: 480, y: 270, radius: 11, vx: 6.4, vy: 4.2, trail: [] },
+  ball: { x: 480, y: 270, radius: 11, vx: 7.8, vy: 5.1, trail: [] },
 };
 
 function fitCanvasToWindow() {
@@ -76,8 +76,8 @@ function fitCanvasToWindow() {
   field.width = rect.width;
   field.height = rect.height;
   field.scale = Math.min(field.width / DESIGN_WIDTH, field.height / DESIGN_HEIGHT);
-  field.baseBallSpeed = 6.4 * field.scale;
-  field.maxBallSpeed = 13.2 * field.scale;
+  field.baseBallSpeed = 7.8 * field.scale;
+  field.maxBallSpeed = 17 * field.scale;
 
   state.player.x = 34 * field.scale;
   state.player.width = Math.max(10, 16 * field.scale);
@@ -138,7 +138,7 @@ function resetBall(direction = 1) {
   state.ball.x = field.width / 2;
   state.ball.y = field.height / 2;
   state.ball.vx = field.baseBallSpeed * direction;
-  state.ball.vy = (Math.random() > 0.5 ? 1 : -1) * 4.2 * field.scale;
+  state.ball.vy = (Math.random() > 0.5 ? 1 : -1) * 5.1 * field.scale;
   state.ball.trail = [];
 }
 
@@ -358,8 +358,8 @@ function activatePowerup(powerup) {
     state.player.height = paddleBaseHeight(state.player);
     state.player.y = clamp(state.player.y, wallInset(), field.height - state.player.height - wallInset());
   } else if (powerup.kind === "slow") {
-    state.ball.vx *= 0.72;
-    state.ball.vy *= 0.72;
+    state.ball.vx *= 0.82;
+    state.ball.vy *= 0.82;
   } else if (powerup.kind === "double") {
     state.scoreMultiplier = 2;
   }
@@ -417,11 +417,11 @@ function hitPaddle(paddle) {
     state.playerHits += 1;
   }
 
-  const playerEdgeBonus = isPlayerHit ? Math.abs(offset) * 0.24 * field.scale : 0;
-  const speedBoost = (0.24 + Math.min(state.hits, 16) * 0.055) * field.scale + playerEdgeBonus;
+  const playerEdgeBonus = isPlayerHit ? Math.abs(offset) * 0.42 * field.scale : 0;
+  const speedBoost = (0.38 + Math.min(state.hits, 18) * 0.085) * field.scale + playerEdgeBonus;
   const nextSpeed = Math.min(Math.abs(ball.vx) + speedBoost, field.maxBallSpeed);
   ball.vx = Math.sign(ball.vx) * -1 * nextSpeed;
-  ball.vy = Math.sign(offset || ball.vy || 1) * Math.pow(Math.abs(offset), isPlayerHit ? 0.72 : 1) * (isPlayerHit ? 8.9 : 7.1) * field.scale;
+  ball.vy = Math.sign(offset || ball.vy || 1) * Math.pow(Math.abs(offset), isPlayerHit ? 0.7 : 1) * (isPlayerHit ? 10.8 : 8.6) * field.scale;
   ball.x = ball.vx > 0 ? paddle.x + paddle.width + ball.radius : paddle.x - ball.radius;
   const isPowerHit = isPlayerHit && state.playerHits >= 5;
   paddle.flash = isPowerHit ? 1.45 : 1;
@@ -488,7 +488,7 @@ function updateBall() {
       state.rally = 0;
       state.cpuAimDrift = 0;
       state.ball.x = wallInset() + state.ball.radius;
-      state.ball.vx = Math.abs(field.baseBallSpeed * 0.9);
+      state.ball.vx = Math.abs(field.baseBallSpeed * 0.95);
       state.ball.vy *= 0.5;
       spawnShieldEffect();
       syncScore();

@@ -88,6 +88,8 @@ The `feature/powerups-goal-scoreboard` branch adds goal effects, random
 powerups, and an expanded score HUD.
 The `feature/player-comeback-balance` branch adds player comeback boosts,
 stronger edge-angle shots, and CPU prediction error under pressure.
+The `feature/faster-ball-speed` branch increases ball start speed, acceleration,
+and maximum speed.
 
 ## Why This Is A Good Small Assembly Project
 
