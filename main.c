@@ -1,0 +1,142 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/select.h>
+
+#define WIDTH 50
+#define HEIGHT 18
+#define PADDLE_SIZE 4
+
+typedef struct {
+    int ball_x;
+    int ball_y;
+    int vx;
+    int vy;
+    int left_y;
+    int right_y;
+    int left_score;
+    int right_score;
+    int width;
+    int height;
+} GameState;
+
+void pong_step(GameState *state);
+
+static struct termios original_terminal;
+
+static void restore_terminal(void) {
+    tcsetattr(STDIN_FILENO, TCSANOW, &original_terminal);
+    printf("\033[?25h\033[0m\n");
+}
+
+static void setup_terminal(void) {
+    struct termios raw;
+    tcgetattr(STDIN_FILENO, &original_terminal);
+    raw = original_terminal;
+    raw.c_lflag &= (tcflag_t) ~(ICANON | ECHO);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+    printf("\033[?25l");
+    atexit(restore_terminal);
+}
+
+static int key_pressed(void) {
+    fd_set set;
+    struct timeval timeout = {0, 0};
+    FD_ZERO(&set);
+    FD_SET(STDIN_FILENO, &set);
+    return select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout) > 0;
+}
+
+static void move_paddle(int *paddle_y, int direction, int height) {
+    *paddle_y += direction;
+    if (*paddle_y < 1) {
+        *paddle_y = 1;
+    }
+    if (*paddle_y > height - PADDLE_SIZE - 1) {
+        *paddle_y = height - PADDLE_SIZE - 1;
+    }
+}
+
+static void draw(const GameState *state) {
+    char screen[HEIGHT][WIDTH + 1];
+
+    for (int y = 0; y < state->height; y++) {
+        for (int x = 0; x < state->width; x++) {
+            if (y == 0 || y == state->height - 1) {
+                screen[y][x] = '-';
+            } else if (x == 0 || x == state->width - 1) {
+                screen[y][x] = '|';
+            } else {
+                screen[y][x] = ' ';
+            }
+        }
+        screen[y][state->width] = '\0';
+    }
+
+    for (int i = 0; i < PADDLE_SIZE; i++) {
+        screen[state->left_y + i][2] = '#';
+        screen[state->right_y + i][state->width - 3] = '#';
+    }
+
+    screen[state->ball_y][state->ball_x] = 'O';
+
+    printf("\033[H");
+    printf("ASM Pong  left:%d  right:%d  quit:q\n", state->left_score, state->right_score);
+    for (int y = 0; y < state->height; y++) {
+        puts(screen[y]);
+    }
+    fflush(stdout);
+}
+
+int main(void) {
+    GameState state = {
+        .ball_x = WIDTH / 2,
+        .ball_y = HEIGHT / 2,
+        .vx = 1,
+        .vy = 1,
+        .left_y = HEIGHT / 2 - PADDLE_SIZE / 2,
+        .right_y = HEIGHT / 2 - PADDLE_SIZE / 2,
+        .left_score = 0,
+        .right_score = 0,
+        .width = WIDTH,
+        .height = HEIGHT,
+    };
+
+    setup_terminal();
+    printf("\033[2J");
+
+    int running = 1;
+    while (running) {
+        while (key_pressed()) {
+            char key = 0;
+            if (read(STDIN_FILENO, &key, 1) != 1) {
+                continue;
+            }
+            if (key == 'q') {
+                running = 0;
+            } else if (key == 'w') {
+                move_paddle(&state.left_y, -1, state.height);
+            } else if (key == 's') {
+                move_paddle(&state.left_y, 1, state.height);
+            } else if (key == 'i') {
+                move_paddle(&state.right_y, -1, state.height);
+            } else if (key == 'k') {
+                move_paddle(&state.right_y, 1, state.height);
+            }
+        }
+
+        pong_step(&state);
+        draw(&state);
+
+        struct timespec delay = {.tv_sec = 0, .tv_nsec = 70000000};
+        nanosleep(&delay, NULL);
+    }
+
+    return 0;
+}
+
