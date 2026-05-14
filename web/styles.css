@@ -100,7 +100,9 @@ body {
 canvas {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: min(62vh, calc((100vw - 44px) * 0.5625));
+  min-height: 260px;
+  max-height: 620px;
   background: #02060a;
   touch-action: none;
 }
@@ -168,6 +170,11 @@ button:hover {
 
   .controls {
     grid-template-columns: 1fr 1fr;
+  }
+
+  canvas {
+    height: min(42vh, calc((100vw - 24px) * 0.72));
+    min-height: 200px;
   }
 
   #upButton {

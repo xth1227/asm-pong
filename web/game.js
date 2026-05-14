@@ -10,9 +10,13 @@ const pauseButton = document.querySelector("#pauseButton");
 const upButton = document.querySelector("#upButton");
 const downButton = document.querySelector("#downButton");
 
+const DESIGN_WIDTH = 960;
+const DESIGN_HEIGHT = 540;
+
 const field = {
-  width: canvas.width,
-  height: canvas.height,
+  width: DESIGN_WIDTH,
+  height: DESIGN_HEIGHT,
+  scale: 1,
   winScore: 5,
   baseBallSpeed: 6.4,
   maxBallSpeed: 13.2,
@@ -38,15 +42,67 @@ const state = {
   ball: { x: 480, y: 270, radius: 11, vx: 6.4, vy: 4.2, trail: [] },
 };
 
+function fitCanvasToWindow() {
+  const rect = canvas.getBoundingClientRect();
+  const previousWidth = field.width;
+  const previousHeight = field.height;
+  const ratioX = previousWidth > 0 ? rect.width / previousWidth : 1;
+  const ratioY = previousHeight > 0 ? rect.height / previousHeight : 1;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  field.width = rect.width;
+  field.height = rect.height;
+  field.scale = Math.min(field.width / DESIGN_WIDTH, field.height / DESIGN_HEIGHT);
+  field.baseBallSpeed = 6.4 * field.scale;
+  field.maxBallSpeed = 13.2 * field.scale;
+
+  state.player.x = 34 * field.scale;
+  state.player.width = Math.max(10, 16 * field.scale);
+  state.player.height = Math.max(76, 118 * field.scale);
+  state.player.speed = Math.max(5.2, 8.2 * field.scale);
+  state.cpu.width = state.player.width;
+  state.cpu.height = state.player.height;
+  state.cpu.speed = Math.max(4.8, 6.8 * field.scale);
+  state.cpu.x = field.width - 34 * field.scale - state.cpu.width;
+
+  state.player.y *= ratioY;
+  state.cpu.y *= ratioY;
+  state.ball.x *= ratioX;
+  state.ball.y *= ratioY;
+  state.ball.radius = Math.max(7, 11 * field.scale);
+  state.ball.vx *= ratioX;
+  state.ball.vy *= ratioY;
+  state.ball.trail = state.ball.trail.map((point) => ({ x: point.x * ratioX, y: point.y * ratioY }));
+  particles.forEach((particle) => {
+    particle.x *= ratioX;
+    particle.y *= ratioY;
+    particle.vx *= ratioX;
+    particle.vy *= ratioY;
+  });
+
+  state.player.y = clamp(state.player.y, wallInset(), field.height - state.player.height - wallInset());
+  state.cpu.y = clamp(state.cpu.y, wallInset(), field.height - state.cpu.height - wallInset());
+  state.ball.x = clamp(state.ball.x, state.ball.radius, field.width - state.ball.radius);
+  state.ball.y = clamp(state.ball.y, state.ball.radius, field.height - state.ball.radius);
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function wallInset() {
+  return Math.max(12, 18 * field.scale);
 }
 
 function resetBall(direction = 1) {
   state.ball.x = field.width / 2;
   state.ball.y = field.height / 2;
   state.ball.vx = field.baseBallSpeed * direction;
-  state.ball.vy = (Math.random() > 0.5 ? 1 : -1) * 4.2;
+  state.ball.vy = (Math.random() > 0.5 ? 1 : -1) * 4.2 * field.scale;
   state.ball.trail = [];
 }
 
@@ -116,7 +172,7 @@ function movePlayer() {
   if (pointer.active) {
     state.player.y += (pointer.y - state.player.height / 2 - state.player.y) * 0.36;
   }
-  state.player.y = clamp(state.player.y, 18, field.height - state.player.height - 18);
+  state.player.y = clamp(state.player.y, wallInset(), field.height - state.player.height - wallInset());
 }
 
 function moveCpu() {
@@ -126,7 +182,7 @@ function moveCpu() {
   const maxStep = state.ball.vx > 0 ? state.cpu.speed : state.cpu.speed * 0.52;
 
   state.cpu.y += clamp(delta, -maxStep, maxStep);
-  state.cpu.y = clamp(state.cpu.y, 18, field.height - state.cpu.height - 18);
+  state.cpu.y = clamp(state.cpu.y, wallInset(), field.height - state.cpu.height - wallInset());
 }
 
 function spawnImpact(x, y, direction, color, isPowerHit = false) {
@@ -136,14 +192,14 @@ function spawnImpact(x, y, direction, color, isPowerHit = false) {
   for (let i = 0; i < count; i++) {
     const angle = isPowerHit ? (Math.PI * 2 * i) / count : (Math.random() - 0.5) * 1.4;
     const spread = isPowerHit ? Math.sin(angle) : (Math.random() - 0.5) * 5.4;
-    const speed = (isPowerHit ? 3.8 : 2.4) + Math.random() * (isPowerHit ? 7.4 : 5.2);
+    const speed = ((isPowerHit ? 3.8 : 2.4) + Math.random() * (isPowerHit ? 7.4 : 5.2)) * field.scale;
     particles.push({
       x,
       y,
       vx: isPowerHit ? Math.cos(angle) * speed : direction * speed,
       vy: spread * speed,
       life: isPowerHit ? 1.25 : 1,
-      size: (isPowerHit ? 3 : 2) + Math.random() * (isPowerHit ? 4 : 3),
+      size: ((isPowerHit ? 3 : 2) + Math.random() * (isPowerHit ? 4 : 3)) * field.scale,
       color: isPowerHit && i % 3 === 0 ? "#ffd166" : color,
     });
   }
@@ -155,14 +211,14 @@ function spawnMissEffect() {
 
   for (let i = 0; i < 70; i++) {
     const angle = -0.85 + Math.random() * 1.7;
-    const speed = 4 + Math.random() * 12;
+    const speed = (4 + Math.random() * 12) * field.scale;
     particles.push({
-      x: 22,
+      x: 22 * field.scale,
       y: state.ball.y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       life: 1.35,
-      size: 3 + Math.random() * 6,
+      size: (3 + Math.random() * 6) * field.scale,
       color: i % 4 === 0 ? "#ffd166" : "#ff5f7d",
     });
   }
@@ -184,10 +240,10 @@ function hitPaddle(paddle) {
     state.playerHits += 1;
   }
 
-  const speedBoost = 0.24 + Math.min(state.hits, 16) * 0.055;
+  const speedBoost = (0.24 + Math.min(state.hits, 16) * 0.055) * field.scale;
   const nextSpeed = Math.min(Math.abs(ball.vx) + speedBoost, field.maxBallSpeed);
   ball.vx = Math.sign(ball.vx) * -1 * nextSpeed;
-  ball.vy = offset * 7.4;
+  ball.vy = offset * 7.4 * field.scale;
   ball.x = ball.vx > 0 ? paddle.x + paddle.width + ball.radius : paddle.x - ball.radius;
   const isPowerHit = isPlayerHit && state.playerHits >= 5;
   paddle.flash = isPowerHit ? 1.45 : 1;
@@ -235,9 +291,9 @@ function updateBall() {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  if (ball.y - ball.radius < 16 || ball.y + ball.radius > field.height - 16) {
+  if (ball.y - ball.radius < wallInset() || ball.y + ball.radius > field.height - wallInset()) {
     ball.vy *= -1;
-    ball.y = clamp(ball.y, 16 + ball.radius, field.height - 16 - ball.radius);
+    ball.y = clamp(ball.y, wallInset() + ball.radius, field.height - wallInset() - ball.radius);
   }
 
   hitPaddle(state.player);
@@ -274,15 +330,15 @@ function drawCourt() {
   ctx.fillRect(0, 0, field.width, field.height);
 
   ctx.strokeStyle = "rgba(83, 215, 255, 0.38)";
-  ctx.lineWidth = 5;
-  ctx.strokeRect(14, 14, field.width - 28, field.height - 28);
+  ctx.lineWidth = Math.max(3, 5 * field.scale);
+  ctx.strokeRect(wallInset(), wallInset(), field.width - wallInset() * 2, field.height - wallInset() * 2);
 
-  ctx.setLineDash([16, 20]);
+  ctx.setLineDash([16 * field.scale, 20 * field.scale]);
   ctx.beginPath();
-  ctx.moveTo(field.width / 2, 28);
-  ctx.lineTo(field.width / 2, field.height - 28);
+  ctx.moveTo(field.width / 2, wallInset() * 2);
+  ctx.lineTo(field.width / 2, field.height - wallInset() * 2);
   ctx.strokeStyle = "rgba(143, 166, 184, 0.42)";
-  ctx.lineWidth = 4;
+  ctx.lineWidth = Math.max(2, 4 * field.scale);
   ctx.stroke();
   ctx.setLineDash([]);
 }
@@ -290,13 +346,13 @@ function drawCourt() {
 function drawPaddle(paddle, color) {
   const flash = paddle.flash || 0;
   ctx.shadowColor = flash > 0 ? "#ffffff" : color;
-  ctx.shadowBlur = 18 + flash * 34;
+  ctx.shadowBlur = (18 + flash * 34) * field.scale;
   ctx.fillStyle = flash > 0 ? "#ffffff" : color;
   ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
   if (flash > 0) {
     ctx.globalAlpha = flash * 0.55;
     ctx.fillStyle = color;
-    ctx.fillRect(paddle.x - 6, paddle.y - 6, paddle.width + 12, paddle.height + 12);
+    ctx.fillRect(paddle.x - 6 * field.scale, paddle.y - 6 * field.scale, paddle.width + 12 * field.scale, paddle.height + 12 * field.scale);
     ctx.globalAlpha = 1;
   }
   ctx.shadowBlur = 0;
@@ -316,7 +372,7 @@ function drawBall() {
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
   ctx.shadowColor = "#ff5f7d";
-  ctx.shadowBlur = 22;
+  ctx.shadowBlur = 22 * field.scale;
   ctx.fillStyle = "#ff5f7d";
   ctx.fill();
   ctx.shadowBlur = 0;
@@ -348,21 +404,21 @@ function drawMissZoom() {
   ctx.save();
   ctx.globalAlpha = 0.75 * t;
   ctx.strokeStyle = "#ff5f7d";
-  ctx.lineWidth = 8 + pulse * 18;
+  ctx.lineWidth = (8 + pulse * 18) * field.scale;
   ctx.beginPath();
-  ctx.arc(28, state.ball.y, 42 + pulse * 190, -Math.PI / 2, Math.PI / 2);
+  ctx.arc(28 * field.scale, state.ball.y, (42 + pulse * 190) * field.scale, -Math.PI / 2, Math.PI / 2);
   ctx.stroke();
   ctx.restore();
 
   ctx.save();
-  ctx.translate(96, clamp(state.ball.y, 118, field.height - 96));
+  ctx.translate(96 * field.scale, clamp(state.ball.y, 118 * field.scale, field.height - 96 * field.scale));
   ctx.scale(1 + pulse * 0.18, 1 + pulse * 0.18);
   ctx.fillStyle = "#ffd166";
   ctx.shadowColor = "#ff5f7d";
-  ctx.shadowBlur = 28;
-  ctx.font = "800 46px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.shadowBlur = 28 * field.scale;
+  ctx.font = `800 ${Math.max(26, 46 * field.scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.fillText("MISS", 0, 0);
-  ctx.font = "700 18px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.font = `700 ${Math.max(12, 18 * field.scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.fillStyle = "rgba(237, 246, 255, 0.82)";
   ctx.fillText("CPU SCORES", 4, 30);
   ctx.restore();
@@ -437,6 +493,7 @@ canvas.addEventListener("pointermove", (event) => {
 canvas.addEventListener("pointerup", () => {
   pointer.active = false;
 });
+window.addEventListener("resize", fitCanvasToWindow);
 
 upButton.addEventListener("pointerdown", () => keys.add("w"));
 upButton.addEventListener("pointerup", () => keys.delete("w"));
@@ -454,5 +511,6 @@ startButton.addEventListener("click", () => {
 restartButton.addEventListener("click", resetGame);
 pauseButton.addEventListener("click", togglePause);
 
+fitCanvasToWindow();
 draw();
 tick();

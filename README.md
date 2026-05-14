@@ -73,6 +73,8 @@ The `feature/ramped-collision-effects` branch ramps ball speed on every paddle
 hit and upgrades player collisions after 5 hits.
 The `feature/miss-zoom-effect` branch adds a dramatic zoom and burst when the
 player misses the ball.
+The `feature/responsive-canvas` branch resizes the Web UI playfield and game
+objects to fit the browser window.
 
 ## Why This Is A Good Small Assembly Project
 
