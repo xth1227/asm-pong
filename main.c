@@ -9,6 +9,7 @@
 #define WIDTH 50
 #define HEIGHT 18
 #define PADDLE_SIZE 4
+#define WIN_SCORE 5
 
 typedef struct {
     int ball_x;
@@ -50,6 +51,19 @@ static int key_pressed(void) {
     FD_ZERO(&set);
     FD_SET(STDIN_FILENO, &set);
     return select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout) > 0;
+}
+
+static void reset_game(GameState *state) {
+    state->ball_x = WIDTH / 2;
+    state->ball_y = HEIGHT / 2;
+    state->vx = 1;
+    state->vy = 1;
+    state->left_y = HEIGHT / 2 - PADDLE_SIZE / 2;
+    state->right_y = HEIGHT / 2 - PADDLE_SIZE / 2;
+    state->left_score = 0;
+    state->right_score = 0;
+    state->width = WIDTH;
+    state->height = HEIGHT;
 }
 
 static void move_paddle(int *paddle_y, int direction, int height) {
@@ -103,24 +117,21 @@ static void draw(const GameState *state) {
     fflush(stdout);
 }
 
+static void draw_game_over(const GameState *state, int winner) {
+    draw(state);
+    printf("\n%s wins. Press r to restart or q to quit.\n", winner == 1 ? "Player" : "CPU");
+    fflush(stdout);
+}
+
 int main(void) {
-    GameState state = {
-        .ball_x = WIDTH / 2,
-        .ball_y = HEIGHT / 2,
-        .vx = 1,
-        .vy = 1,
-        .left_y = HEIGHT / 2 - PADDLE_SIZE / 2,
-        .right_y = HEIGHT / 2 - PADDLE_SIZE / 2,
-        .left_score = 0,
-        .right_score = 0,
-        .width = WIDTH,
-        .height = HEIGHT,
-    };
+    GameState state;
+    reset_game(&state);
 
     setup_terminal();
     printf("\033[2J");
 
     int running = 1;
+    int winner = 0;
     while (running) {
         while (key_pressed()) {
             char key = 0;
@@ -129,6 +140,10 @@ int main(void) {
             }
             if (key == 'q') {
                 running = 0;
+            } else if (key == 'r' && winner != 0) {
+                reset_game(&state);
+                winner = 0;
+                printf("\033[2J");
             } else if (key == 'w') {
                 move_paddle(&state.left_y, -1, state.height);
             } else if (key == 's') {
@@ -136,9 +151,21 @@ int main(void) {
             }
         }
 
-        move_ai_paddle(&state);
-        pong_step(&state);
-        draw(&state);
+        if (winner == 0) {
+            move_ai_paddle(&state);
+            pong_step(&state);
+            if (state.left_score >= WIN_SCORE) {
+                winner = 1;
+            } else if (state.right_score >= WIN_SCORE) {
+                winner = 2;
+            }
+        }
+
+        if (winner == 0) {
+            draw(&state);
+        } else {
+            draw_game_over(&state, winner);
+        }
 
         struct timespec delay = {.tv_sec = 0, .tv_nsec = 70000000};
         nanosleep(&delay, NULL);

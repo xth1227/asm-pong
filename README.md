@@ -26,12 +26,17 @@ make
 
 - Player paddle: `w` and `s`
 - CPU paddle: automatic
+- Restart after a win: `r`
 - Quit: `q`
+
+The first side to reach 5 points wins the round.
 
 ## Branch Idea
 
 This branch turns the game into single-player Pong. The player controls the
 left paddle, while a simple CPU opponent follows the ball from the right side.
+The `feature/win-condition` branch adds a 5-point win condition and restart
+flow.
 
 ## Why This Is A Good Small Assembly Project
 
