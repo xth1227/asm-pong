@@ -71,6 +71,8 @@ The `feature/pause-control` branch adds keyboard and button pause/resume for
 the Web UI.
 The `feature/ramped-collision-effects` branch ramps ball speed on every paddle
 hit and upgrades player collisions after 5 hits.
+The `feature/miss-zoom-effect` branch adds a dramatic zoom and burst when the
+player misses the ball.
 
 ## Why This Is A Good Small Assembly Project
 

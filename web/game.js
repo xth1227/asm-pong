@@ -27,6 +27,8 @@ const state = {
   over: false,
   paused: false,
   shake: 0,
+  missEffect: 0,
+  pendingResetDirection: 0,
   hits: 0,
   playerHits: 0,
   playerScore: 0,
@@ -61,6 +63,8 @@ function resetGame() {
   state.running = true;
   state.paused = false;
   state.shake = 0;
+  state.missEffect = 0;
+  state.pendingResetDirection = 0;
   state.hits = 0;
   state.playerHits = 0;
   particles.length = 0;
@@ -145,6 +149,25 @@ function spawnImpact(x, y, direction, color, isPowerHit = false) {
   }
 }
 
+function spawnMissEffect() {
+  state.shake = 24;
+  state.missEffect = 1;
+
+  for (let i = 0; i < 70; i++) {
+    const angle = -0.85 + Math.random() * 1.7;
+    const speed = 4 + Math.random() * 12;
+    particles.push({
+      x: 22,
+      y: state.ball.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1.35,
+      size: 3 + Math.random() * 6,
+      color: i % 4 === 0 ? "#ffd166" : "#ff5f7d",
+    });
+  }
+}
+
 function hitPaddle(paddle) {
   const ball = state.ball;
   const withinY = ball.y + ball.radius >= paddle.y && ball.y - ball.radius <= paddle.y + paddle.height;
@@ -174,6 +197,7 @@ function hitPaddle(paddle) {
 
 function updateEffects() {
   state.shake *= 0.82;
+  state.missEffect = Math.max(0, state.missEffect - 0.018);
   state.player.flash = Math.max(0, (state.player.flash || 0) - 0.08);
   state.cpu.flash = Math.max(0, (state.cpu.flash || 0) - 0.08);
 
@@ -188,6 +212,16 @@ function updateEffects() {
       particles.splice(i, 1);
     }
   }
+}
+
+function resetAfterMissIfReady() {
+  if (state.missEffect > 0 || state.pendingResetDirection === 0) {
+    return;
+  }
+
+  const direction = state.pendingResetDirection;
+  state.pendingResetDirection = 0;
+  resetBall(direction);
 }
 
 function updateBall() {
@@ -214,7 +248,12 @@ function updateBall() {
     state.hits = 0;
     state.playerHits = 0;
     syncScore();
-    state.cpuScore >= field.winScore ? finishGame("CPU") : resetBall(1);
+    if (state.cpuScore >= field.winScore) {
+      finishGame("CPU");
+    } else {
+      spawnMissEffect();
+      state.pendingResetDirection = 1;
+    }
   } else if (ball.x > field.width + ball.radius) {
     state.playerScore += 1;
     state.hits = 0;
@@ -292,26 +331,72 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+function drawMissZoom() {
+  if (state.missEffect <= 0) {
+    return;
+  }
+
+  const t = state.missEffect;
+  const pulse = Math.sin((1 - t) * Math.PI);
+
+  ctx.save();
+  ctx.globalAlpha = 0.22 * t;
+  ctx.fillStyle = "#ff5f7d";
+  ctx.fillRect(0, 0, field.width * 0.34, field.height);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.75 * t;
+  ctx.strokeStyle = "#ff5f7d";
+  ctx.lineWidth = 8 + pulse * 18;
+  ctx.beginPath();
+  ctx.arc(28, state.ball.y, 42 + pulse * 190, -Math.PI / 2, Math.PI / 2);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(96, clamp(state.ball.y, 118, field.height - 96));
+  ctx.scale(1 + pulse * 0.18, 1 + pulse * 0.18);
+  ctx.fillStyle = "#ffd166";
+  ctx.shadowColor = "#ff5f7d";
+  ctx.shadowBlur = 28;
+  ctx.font = "800 46px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("MISS", 0, 0);
+  ctx.font = "700 18px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillStyle = "rgba(237, 246, 255, 0.82)";
+  ctx.fillText("CPU SCORES", 4, 30);
+  ctx.restore();
+}
+
 function draw() {
+  const missZoom = state.missEffect > 0 ? 1 + state.missEffect * 0.1 : 1;
   const shakeX = (Math.random() - 0.5) * state.shake;
   const shakeY = (Math.random() - 0.5) * state.shake;
 
   ctx.save();
   ctx.translate(shakeX, shakeY);
+  if (state.missEffect > 0) {
+    ctx.translate(-field.width * 0.055 * state.missEffect, -field.height * 0.05 * state.missEffect);
+    ctx.scale(missZoom, missZoom);
+  }
   drawCourt();
   drawPaddle(state.player, "#5cff8d");
   drawPaddle(state.cpu, "#53d7ff");
   drawParticles();
   drawBall();
   ctx.restore();
+  drawMissZoom();
 }
 
 function tick() {
   if (state.running && !state.paused) {
-    movePlayer();
-    moveCpu();
-    updateBall();
+    if (state.pendingResetDirection === 0) {
+      movePlayer();
+      moveCpu();
+      updateBall();
+    }
     updateEffects();
+    resetAfterMissIfReady();
   }
 
   draw();
