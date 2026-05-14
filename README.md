@@ -37,6 +37,8 @@ Web features:
 - Goal burst effects when either side scores
 - Random powerups: wide paddle, slow ball, and double point
 - Score HUD with player hits, rally count, active power, and multiplier
+- Comeback balancing with stronger player edge shots, prediction pressure on
+  the CPU, and an automatic shield when the player falls behind
 - Responsive canvas sizing for desktop and mobile windows
 
 ## Test
@@ -84,6 +86,8 @@ The `feature/responsive-canvas` branch resizes the Web UI playfield and game
 objects to fit the browser window.
 The `feature/powerups-goal-scoreboard` branch adds goal effects, random
 powerups, and an expanded score HUD.
+The `feature/player-comeback-balance` branch adds player comeback boosts,
+stronger edge-angle shots, and CPU prediction error under pressure.
 
 ## Why This Is A Good Small Assembly Project
 

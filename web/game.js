@@ -51,6 +51,8 @@ const state = {
   activePower: "",
   powerTimer: 0,
   nextPowerSpawn: 240,
+  cpuAimDrift: 0,
+  comebackShield: false,
   powerup: null,
   playerScore: 0,
   cpuScore: 0,
@@ -80,7 +82,7 @@ function fitCanvasToWindow() {
   state.player.x = 34 * field.scale;
   state.player.width = Math.max(10, 16 * field.scale);
   state.player.height = paddleBaseHeight(state.player);
-  state.player.speed = Math.max(5.2, 8.2 * field.scale);
+  state.player.speed = Math.max(5.2, 8.2 * field.scale * comebackBoost());
   state.cpu.width = state.player.width;
   state.cpu.height = state.player.height;
   state.cpu.speed = Math.max(4.8, 6.8 * field.scale);
@@ -121,8 +123,15 @@ function wallInset() {
 }
 
 function paddleBaseHeight(paddle) {
-  const boost = paddle === state.player && state.activePower === "wide" ? 1.42 : 1;
+  const powerBoost = paddle === state.player && state.activePower === "wide" ? 1.42 : 1;
+  const comeback = paddle === state.player ? comebackBoost() : 1;
+  const boost = powerBoost * comeback;
   return Math.max(76, 118 * field.scale * boost);
+}
+
+function comebackBoost() {
+  const deficit = Math.max(0, state.cpuScore - state.playerScore);
+  return 1 + Math.min(deficit, 3) * 0.08;
 }
 
 function resetBall(direction = 1) {
@@ -159,6 +168,8 @@ function resetGame() {
   state.activePower = "";
   state.powerTimer = 0;
   state.nextPowerSpawn = 180;
+  state.cpuAimDrift = 0;
+  state.comebackShield = false;
   state.powerup = null;
   particles.length = 0;
   pauseButton.textContent = "Pause";
@@ -176,8 +187,10 @@ function syncScore() {
     ? `POWER: ${state.activePower.toUpperCase()} ${Math.ceil(state.powerTimer / 60)}s`
     : state.powerup
       ? `POWER: ${state.powerup.label}`
-      : "POWER: WAITING";
-  rallyStatusEl.textContent = `RALLY: ${state.rally}  MULTI: x${state.scoreMultiplier}`;
+      : state.comebackShield
+        ? "POWER: SHIELD READY"
+        : "POWER: WAITING";
+  rallyStatusEl.textContent = `RALLY: ${state.rally}  MULTI: x${state.scoreMultiplier}  BOOST: x${comebackBoost().toFixed(2)}`;
 }
 
 function finishGame(winner) {
@@ -217,14 +230,21 @@ function movePlayer() {
   if (pointer.active) {
     state.player.y += (pointer.y - state.player.height / 2 - state.player.y) * 0.36;
   }
+  state.player.height = paddleBaseHeight(state.player);
   state.player.y = clamp(state.player.y, wallInset(), field.height - state.player.height - wallInset());
 }
 
 function moveCpu() {
   const center = state.cpu.y + state.cpu.height / 2;
-  const target = state.ball.vx > 0 ? state.ball.y : field.height / 2;
+  const speedPressure = Math.max(0, Math.abs(state.ball.vx) / Math.max(field.baseBallSpeed, 1) - 1);
+  if (state.ball.vx > 0 && Math.random() < 0.025 + speedPressure * 0.012) {
+    state.cpuAimDrift = (Math.random() - 0.5) * state.cpu.height * Math.min(1.2, 0.42 + speedPressure * 0.22);
+  }
+  const target = state.ball.vx > 0 ? state.ball.y + state.cpuAimDrift : field.height / 2;
   const delta = target - center;
-  const maxStep = state.ball.vx > 0 ? state.cpu.speed : state.cpu.speed * 0.52;
+  const edgePenalty = Math.abs(state.ball.y - field.height / 2) / (field.height / 2);
+  const pressurePenalty = clamp(1 - speedPressure * 0.08 - edgePenalty * 0.14, 0.72, 1);
+  const maxStep = state.ball.vx > 0 ? state.cpu.speed * pressurePenalty : state.cpu.speed * 0.46;
 
   state.cpu.y += clamp(delta, -maxStep, maxStep);
   state.cpu.y = clamp(state.cpu.y, wallInset(), field.height - state.cpu.height - wallInset());
@@ -290,6 +310,26 @@ function spawnGoalEffect(label, color) {
   }
 }
 
+function spawnShieldEffect() {
+  state.shake = 18;
+  state.goalEffect = 0.78;
+  state.goalMessage = "SHIELD SAVE";
+
+  for (let i = 0; i < 56; i++) {
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.3;
+    const speed = (3 + Math.random() * 9) * field.scale;
+    particles.push({
+      x: wallInset() + 8 * field.scale,
+      y: state.ball.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      size: (3 + Math.random() * 5) * field.scale,
+      color: "#ffd166",
+    });
+  }
+}
+
 function spawnPowerup() {
   const template = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
   state.powerup = {
@@ -329,6 +369,10 @@ function activatePowerup(powerup) {
 }
 
 function updatePowerups() {
+  if (!state.comebackShield && state.cpuScore - state.playerScore >= 2) {
+    state.comebackShield = true;
+  }
+
   if (state.activePower) {
     state.powerTimer -= 1;
     if (state.powerTimer <= 0) {
@@ -337,7 +381,7 @@ function updatePowerups() {
   }
 
   if (!state.powerup && !state.activePower) {
-    state.nextPowerSpawn -= 1;
+    state.nextPowerSpawn -= Math.max(1, comebackBoost() - 0.05);
     if (state.nextPowerSpawn <= 0) {
       spawnPowerup();
       state.nextPowerSpawn = 420 + Math.floor(Math.random() * 300);
@@ -364,7 +408,8 @@ function hitPaddle(paddle) {
     return false;
   }
 
-  const offset = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2);
+  const rawOffset = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2);
+  const offset = clamp(rawOffset, -1, 1);
   const isPlayerHit = paddle === state.player;
   state.hits += 1;
   state.rally += 1;
@@ -372,10 +417,11 @@ function hitPaddle(paddle) {
     state.playerHits += 1;
   }
 
-  const speedBoost = (0.24 + Math.min(state.hits, 16) * 0.055) * field.scale;
+  const playerEdgeBonus = isPlayerHit ? Math.abs(offset) * 0.24 * field.scale : 0;
+  const speedBoost = (0.24 + Math.min(state.hits, 16) * 0.055) * field.scale + playerEdgeBonus;
   const nextSpeed = Math.min(Math.abs(ball.vx) + speedBoost, field.maxBallSpeed);
   ball.vx = Math.sign(ball.vx) * -1 * nextSpeed;
-  ball.vy = offset * 7.4 * field.scale;
+  ball.vy = Math.sign(offset || ball.vy || 1) * Math.pow(Math.abs(offset), isPlayerHit ? 0.72 : 1) * (isPlayerHit ? 8.9 : 7.1) * field.scale;
   ball.x = ball.vx > 0 ? paddle.x + paddle.width + ball.radius : paddle.x - ball.radius;
   const isPowerHit = isPlayerHit && state.playerHits >= 5;
   paddle.flash = isPowerHit ? 1.45 : 1;
@@ -435,10 +481,25 @@ function updateBall() {
   hitPaddle(state.cpu);
 
   if (ball.x < -ball.radius) {
+    if (state.comebackShield) {
+      state.comebackShield = false;
+      state.hits = 0;
+      state.playerHits = 0;
+      state.rally = 0;
+      state.cpuAimDrift = 0;
+      state.ball.x = wallInset() + state.ball.radius;
+      state.ball.vx = Math.abs(field.baseBallSpeed * 0.9);
+      state.ball.vy *= 0.5;
+      spawnShieldEffect();
+      syncScore();
+      return;
+    }
+
     state.cpuScore += 1;
     state.hits = 0;
     state.playerHits = 0;
     state.rally = 0;
+    state.cpuAimDrift = 0;
     clearActivePower();
     syncScore();
     if (state.cpuScore >= field.winScore) {
@@ -454,6 +515,7 @@ function updateBall() {
     state.hits = 0;
     state.playerHits = 0;
     state.rally = 0;
+    state.cpuAimDrift = 0;
     clearActivePower();
     spawnGoalEffect(points > 1 ? "PLAYER +2" : "PLAYER GOAL", "#5cff8d");
     syncScore();
