@@ -67,6 +67,8 @@ moving toward it.
 The `feature/web-ui` branch adds a browser-playable Canvas version.
 The `feature/collision-effects` branch adds paddle flash, screen shake, ball
 trail, and impact particles for Web UI collisions.
+The `feature/pause-control` branch adds keyboard and button pause/resume for
+the Web UI.
 
 ## Why This Is A Good Small Assembly Project
 

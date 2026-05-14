@@ -147,12 +147,13 @@ button:hover {
 
 .controls {
   display: grid;
-  grid-template-columns: 64px 1fr 64px;
+  grid-template-columns: 64px 1fr 1fr 64px;
   gap: 10px;
   margin-top: 12px;
 }
 
-#restartButton {
+#restartButton,
+#pauseButton {
   color: var(--gold);
 }
 
@@ -166,6 +167,22 @@ button:hover {
   }
 
   .controls {
-    grid-template-columns: 58px 1fr 58px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #upButton {
+    order: 1;
+  }
+
+  #downButton {
+    order: 2;
+  }
+
+  #restartButton {
+    order: 3;
+  }
+
+  #pauseButton {
+    order: 4;
   }
 }

@@ -6,6 +6,7 @@ const overlay = document.querySelector("#overlay");
 const overlayTitle = document.querySelector("#overlayTitle");
 const startButton = document.querySelector("#startButton");
 const restartButton = document.querySelector("#restartButton");
+const pauseButton = document.querySelector("#pauseButton");
 const upButton = document.querySelector("#upButton");
 const downButton = document.querySelector("#downButton");
 
@@ -22,6 +23,7 @@ const particles = [];
 const state = {
   running: false,
   over: false,
+  paused: false,
   shake: 0,
   playerScore: 0,
   cpuScore: 0,
@@ -53,8 +55,10 @@ function resetGame() {
   state.cpuScore = 0;
   state.over = false;
   state.running = true;
+  state.paused = false;
   state.shake = 0;
   particles.length = 0;
+  pauseButton.textContent = "Pause";
   overlay.classList.add("hidden");
   resetRound();
   syncScore();
@@ -68,9 +72,28 @@ function syncScore() {
 function finishGame(winner) {
   state.running = false;
   state.over = true;
+  state.paused = false;
   overlayTitle.textContent = `${winner} WINS`;
   startButton.textContent = "Restart";
+  pauseButton.textContent = "Pause";
   overlay.classList.remove("hidden");
+}
+
+function togglePause() {
+  if (!state.running || state.over) {
+    return;
+  }
+
+  state.paused = !state.paused;
+  pauseButton.textContent = state.paused ? "Resume" : "Pause";
+
+  if (state.paused) {
+    overlayTitle.textContent = "PAUSED";
+    startButton.textContent = "Resume";
+    overlay.classList.remove("hidden");
+  } else {
+    overlay.classList.add("hidden");
+  }
 }
 
 function movePlayer() {
@@ -263,13 +286,13 @@ function draw() {
 }
 
 function tick() {
-  if (state.running) {
+  if (state.running && !state.paused) {
     movePlayer();
     moveCpu();
     updateBall();
+    updateEffects();
   }
 
-  updateEffects();
   draw();
   requestAnimationFrame(tick);
 }
@@ -284,6 +307,8 @@ document.addEventListener("keydown", (event) => {
   keys.add(key);
   if (key === " " && !state.running) {
     resetGame();
+  } else if (key === "p") {
+    togglePause();
   }
 });
 
@@ -313,8 +338,15 @@ upButton.addEventListener("pointerleave", () => keys.delete("w"));
 downButton.addEventListener("pointerdown", () => keys.add("s"));
 downButton.addEventListener("pointerup", () => keys.delete("s"));
 downButton.addEventListener("pointerleave", () => keys.delete("s"));
-startButton.addEventListener("click", resetGame);
+startButton.addEventListener("click", () => {
+  if (state.paused) {
+    togglePause();
+  } else {
+    resetGame();
+  }
+});
 restartButton.addEventListener("click", resetGame);
+pauseButton.addEventListener("click", togglePause);
 
 draw();
 tick();
