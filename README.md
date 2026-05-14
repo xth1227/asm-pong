@@ -22,6 +22,12 @@ make
 ./asm_pong
 ```
 
+## Test
+
+```bash
+make test
+```
+
 ## Controls
 
 - Player paddle: `w` and `s`
@@ -41,6 +47,8 @@ flow.
 The `feature/cpu-difficulty` branch gives the CPU a slower reaction speed so
 the player has a fairer chance.
 The `feature/terminal-colors` branch adds colored terminal rendering.
+The `test/pong-step` branch adds a small C test harness for the ARM64 assembly
+physics function.
 
 ## Why This Is A Good Small Assembly Project
 
