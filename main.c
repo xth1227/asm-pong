@@ -12,6 +12,12 @@
 #define WIN_SCORE 5
 #define CPU_MOVE_INTERVAL 3
 
+#define COLOR_RESET "\033[0m"
+#define COLOR_BORDER "\033[38;5;244m"
+#define COLOR_PADDLE "\033[38;5;46m"
+#define COLOR_BALL "\033[38;5;203m"
+#define COLOR_SCORE "\033[38;5;81m"
+
 typedef struct {
     int ball_x;
     int ball_y;
@@ -111,16 +117,35 @@ static void draw(const GameState *state) {
     screen[state->ball_y][state->ball_x] = 'O';
 
     printf("\033[H");
-    printf("ASM Pong  player:%d  cpu:%d  quit:q\n", state->left_score, state->right_score);
+    printf(
+        COLOR_SCORE "ASM Pong  player:%d  cpu:%d  quit:q" COLOR_RESET "\n",
+        state->left_score,
+        state->right_score
+    );
     for (int y = 0; y < state->height; y++) {
-        puts(screen[y]);
+        for (int x = 0; x < state->width; x++) {
+            char cell = screen[y][x];
+            if (cell == '-' || cell == '|') {
+                printf(COLOR_BORDER "%c" COLOR_RESET, cell);
+            } else if (cell == '#') {
+                printf(COLOR_PADDLE "%c" COLOR_RESET, cell);
+            } else if (cell == 'O') {
+                printf(COLOR_BALL "%c" COLOR_RESET, cell);
+            } else {
+                putchar(cell);
+            }
+        }
+        putchar('\n');
     }
     fflush(stdout);
 }
 
 static void draw_game_over(const GameState *state, int winner) {
     draw(state);
-    printf("\n%s wins. Press r to restart or q to quit.\n", winner == 1 ? "Player" : "CPU");
+    printf(
+        "\n" COLOR_SCORE "%s wins. Press r to restart or q to quit." COLOR_RESET "\n",
+        winner == 1 ? "Player" : "CPU"
+    );
     fflush(stdout);
 }
 

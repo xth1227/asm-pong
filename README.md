@@ -30,6 +30,7 @@ make
 - Quit: `q`
 
 The first side to reach 5 points wins the round.
+The terminal display uses ANSI colors for the ball, paddles, score, and border.
 
 ## Branch Idea
 
@@ -39,6 +40,7 @@ The `feature/win-condition` branch adds a 5-point win condition and restart
 flow.
 The `feature/cpu-difficulty` branch gives the CPU a slower reaction speed so
 the player has a fairer chance.
+The `feature/terminal-colors` branch adds colored terminal rendering.
 
 ## Why This Is A Good Small Assembly Project
 
