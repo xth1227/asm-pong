@@ -17,15 +17,17 @@ const field = {
 
 const keys = new Set();
 const pointer = { active: false, y: 0 };
+const particles = [];
 
 const state = {
   running: false,
   over: false,
+  shake: 0,
   playerScore: 0,
   cpuScore: 0,
   player: { x: 34, y: 210, width: 16, height: 118, speed: 8.2 },
   cpu: { x: 910, y: 210, width: 16, height: 118, speed: 6.8 },
-  ball: { x: 480, y: 270, radius: 11, vx: 6.4, vy: 4.2 },
+  ball: { x: 480, y: 270, radius: 11, vx: 6.4, vy: 4.2, trail: [] },
 };
 
 function clamp(value, min, max) {
@@ -37,6 +39,7 @@ function resetBall(direction = 1) {
   state.ball.y = field.height / 2;
   state.ball.vx = 6.4 * direction;
   state.ball.vy = (Math.random() > 0.5 ? 1 : -1) * 4.2;
+  state.ball.trail = [];
 }
 
 function resetRound() {
@@ -50,6 +53,8 @@ function resetGame() {
   state.cpuScore = 0;
   state.over = false;
   state.running = true;
+  state.shake = 0;
+  particles.length = 0;
   overlay.classList.add("hidden");
   resetRound();
   syncScore();
@@ -91,6 +96,24 @@ function moveCpu() {
   state.cpu.y = clamp(state.cpu.y, 18, field.height - state.cpu.height - 18);
 }
 
+function spawnImpact(x, y, direction, color) {
+  state.shake = 10;
+
+  for (let i = 0; i < 18; i++) {
+    const spread = (Math.random() - 0.5) * 5.4;
+    const speed = 2.4 + Math.random() * 5.2;
+    particles.push({
+      x,
+      y,
+      vx: direction * speed,
+      vy: spread,
+      life: 1,
+      size: 2 + Math.random() * 3,
+      color,
+    });
+  }
+}
+
 function hitPaddle(paddle) {
   const ball = state.ball;
   const withinY = ball.y + ball.radius >= paddle.y && ball.y - ball.radius <= paddle.y + paddle.height;
@@ -104,11 +127,36 @@ function hitPaddle(paddle) {
   ball.vx = Math.sign(ball.vx) * -1 * Math.min(Math.abs(ball.vx) + 0.28, 10.5);
   ball.vy = offset * 7.4;
   ball.x = ball.vx > 0 ? paddle.x + paddle.width + ball.radius : paddle.x - ball.radius;
+  paddle.flash = 1;
+  spawnImpact(ball.x, ball.y, Math.sign(ball.vx), paddle === state.player ? "#5cff8d" : "#53d7ff");
   return true;
+}
+
+function updateEffects() {
+  state.shake *= 0.82;
+  state.player.flash = Math.max(0, (state.player.flash || 0) - 0.08);
+  state.cpu.flash = Math.max(0, (state.cpu.flash || 0) - 0.08);
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const particle = particles[i];
+    particle.x += particle.vx;
+    particle.y += particle.vy;
+    particle.vx *= 0.96;
+    particle.vy *= 0.96;
+    particle.life -= 0.045;
+    if (particle.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
 }
 
 function updateBall() {
   const ball = state.ball;
+
+  ball.trail.push({ x: ball.x, y: ball.y });
+  if (ball.trail.length > 9) {
+    ball.trail.shift();
+  }
 
   ball.x += ball.vx;
   ball.y += ball.vy;
@@ -157,15 +205,31 @@ function drawCourt() {
 }
 
 function drawPaddle(paddle, color) {
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 18;
-  ctx.fillStyle = color;
+  const flash = paddle.flash || 0;
+  ctx.shadowColor = flash > 0 ? "#ffffff" : color;
+  ctx.shadowBlur = 18 + flash * 34;
+  ctx.fillStyle = flash > 0 ? "#ffffff" : color;
   ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+  if (flash > 0) {
+    ctx.globalAlpha = flash * 0.55;
+    ctx.fillStyle = color;
+    ctx.fillRect(paddle.x - 6, paddle.y - 6, paddle.width + 12, paddle.height + 12);
+    ctx.globalAlpha = 1;
+  }
   ctx.shadowBlur = 0;
 }
 
 function drawBall() {
   const ball = state.ball;
+
+  ball.trail.forEach((point, index) => {
+    const alpha = (index + 1) / ball.trail.length;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, ball.radius * alpha * 0.78, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 95, 125, ${alpha * 0.22})`;
+    ctx.fill();
+  });
+
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
   ctx.shadowColor = "#ff5f7d";
@@ -175,11 +239,27 @@ function drawBall() {
   ctx.shadowBlur = 0;
 }
 
+function drawParticles() {
+  particles.forEach((particle) => {
+    ctx.globalAlpha = Math.max(0, particle.life);
+    ctx.fillStyle = particle.color;
+    ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+  });
+  ctx.globalAlpha = 1;
+}
+
 function draw() {
+  const shakeX = (Math.random() - 0.5) * state.shake;
+  const shakeY = (Math.random() - 0.5) * state.shake;
+
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
   drawCourt();
   drawPaddle(state.player, "#5cff8d");
   drawPaddle(state.cpu, "#53d7ff");
+  drawParticles();
   drawBall();
+  ctx.restore();
 }
 
 function tick() {
@@ -189,6 +269,7 @@ function tick() {
     updateBall();
   }
 
+  updateEffects();
   draw();
   requestAnimationFrame(tick);
 }

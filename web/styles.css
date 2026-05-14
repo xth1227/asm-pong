@@ -85,6 +85,18 @@ body {
     0 0 44px rgba(83, 215, 255, 0.12);
 }
 
+.arena-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.025) 50%, transparent 50%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.018));
+  background-size: 100% 4px, 100% 100%;
+  mix-blend-mode: screen;
+}
+
 canvas {
   display: block;
   width: 100%;

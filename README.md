@@ -65,6 +65,8 @@ control hint, and centered win message.
 The `feature/stronger-cpu` branch makes the CPU react faster when the ball is
 moving toward it.
 The `feature/web-ui` branch adds a browser-playable Canvas version.
+The `feature/collision-effects` branch adds paddle flash, screen shake, ball
+trail, and impact particles for Web UI collisions.
 
 ## Why This Is A Good Small Assembly Project
 
