@@ -10,6 +10,7 @@
 #define HEIGHT 18
 #define PADDLE_SIZE 4
 #define WIN_SCORE 5
+#define CPU_MOVE_INTERVAL 3
 
 typedef struct {
     int ball_x;
@@ -132,6 +133,7 @@ int main(void) {
 
     int running = 1;
     int winner = 0;
+    int frame = 0;
     while (running) {
         while (key_pressed()) {
             char key = 0;
@@ -143,6 +145,7 @@ int main(void) {
             } else if (key == 'r' && winner != 0) {
                 reset_game(&state);
                 winner = 0;
+                frame = 0;
                 printf("\033[2J");
             } else if (key == 'w') {
                 move_paddle(&state.left_y, -1, state.height);
@@ -152,8 +155,11 @@ int main(void) {
         }
 
         if (winner == 0) {
-            move_ai_paddle(&state);
+            if (frame % CPU_MOVE_INTERVAL == 0) {
+                move_ai_paddle(&state);
+            }
             pong_step(&state);
+            frame++;
             if (state.left_score >= WIN_SCORE) {
                 winner = 1;
             } else if (state.right_score >= WIN_SCORE) {

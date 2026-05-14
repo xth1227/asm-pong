@@ -25,7 +25,7 @@ make
 ## Controls
 
 - Player paddle: `w` and `s`
-- CPU paddle: automatic
+- CPU paddle: automatic, with a small reaction delay
 - Restart after a win: `r`
 - Quit: `q`
 
@@ -37,6 +37,8 @@ This branch turns the game into single-player Pong. The player controls the
 left paddle, while a simple CPU opponent follows the ball from the right side.
 The `feature/win-condition` branch adds a 5-point win condition and restart
 flow.
+The `feature/cpu-difficulty` branch gives the CPU a slower reaction speed so
+the player has a fairer chance.
 
 ## Why This Is A Good Small Assembly Project
 
