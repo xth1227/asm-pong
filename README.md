@@ -24,13 +24,17 @@ make
 
 ## Controls
 
-- Left paddle: `w` and `s`
-- Right paddle: `i` and `k`
+- Player paddle: `w` and `s`
+- CPU paddle: automatic
 - Quit: `q`
+
+## Branch Idea
+
+This branch turns the game into single-player Pong. The player controls the
+left paddle, while a simple CPU opponent follows the ball from the right side.
 
 ## Why This Is A Good Small Assembly Project
 
 Pong has simple rules, but the update loop is real low-level logic: integer
 coordinates, branches, comparisons, memory offsets, and state mutation. That
 makes it a compact project for learning assembly without needing graphics APIs.
-

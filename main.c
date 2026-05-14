@@ -62,6 +62,16 @@ static void move_paddle(int *paddle_y, int direction, int height) {
     }
 }
 
+static void move_ai_paddle(GameState *state) {
+    int paddle_center = state->right_y + PADDLE_SIZE / 2;
+
+    if (state->ball_y < paddle_center) {
+        move_paddle(&state->right_y, -1, state->height);
+    } else if (state->ball_y > paddle_center) {
+        move_paddle(&state->right_y, 1, state->height);
+    }
+}
+
 static void draw(const GameState *state) {
     char screen[HEIGHT][WIDTH + 1];
 
@@ -86,7 +96,7 @@ static void draw(const GameState *state) {
     screen[state->ball_y][state->ball_x] = 'O';
 
     printf("\033[H");
-    printf("ASM Pong  left:%d  right:%d  quit:q\n", state->left_score, state->right_score);
+    printf("ASM Pong  player:%d  cpu:%d  quit:q\n", state->left_score, state->right_score);
     for (int y = 0; y < state->height; y++) {
         puts(screen[y]);
     }
@@ -123,13 +133,10 @@ int main(void) {
                 move_paddle(&state.left_y, -1, state.height);
             } else if (key == 's') {
                 move_paddle(&state.left_y, 1, state.height);
-            } else if (key == 'i') {
-                move_paddle(&state.right_y, -1, state.height);
-            } else if (key == 'k') {
-                move_paddle(&state.right_y, 1, state.height);
             }
         }
 
+        move_ai_paddle(&state);
         pong_step(&state);
         draw(&state);
 
@@ -139,4 +146,3 @@ int main(void) {
 
     return 0;
 }
-
