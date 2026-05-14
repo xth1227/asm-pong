@@ -10,7 +10,7 @@
 #define HEIGHT 18
 #define PADDLE_SIZE 4
 #define WIN_SCORE 5
-#define CPU_MOVE_INTERVAL 3
+#define CPU_RETURN_INTERVAL 2
 
 #define COLOR_RESET "\033[0m"
 #define COLOR_BORDER "\033[38;5;244m"
@@ -94,6 +94,14 @@ static void move_ai_paddle(GameState *state) {
     } else if (state->ball_y > paddle_center) {
         move_paddle(&state->right_y, 1, state->height);
     }
+}
+
+static int should_move_cpu(const GameState *state, int frame) {
+    if (state->vx > 0) {
+        return 1;
+    }
+
+    return frame % CPU_RETURN_INTERVAL == 0;
 }
 
 static void print_centered_line(const char *text, const char *color) {
@@ -207,7 +215,7 @@ int main(void) {
         }
 
         if (winner == 0) {
-            if (frame % CPU_MOVE_INTERVAL == 0) {
+            if (should_move_cpu(&state, frame)) {
                 move_ai_paddle(&state);
             }
             pong_step(&state);

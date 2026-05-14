@@ -31,7 +31,7 @@ make test
 ## Controls
 
 - Player paddle: `w` and `s`
-- CPU paddle: automatic, with a small reaction delay
+- CPU paddle: automatic, with stronger tracking when the ball attacks
 - Restart after a win: `r`
 - Quit: `q`
 
@@ -52,6 +52,8 @@ The `test/pong-step` branch adds a small C test harness for the ARM64 assembly
 physics function.
 The `feature/visual-polish` branch adds a cleaner HUD, center line, bottom
 control hint, and centered win message.
+The `feature/stronger-cpu` branch makes the CPU react faster when the ball is
+moving toward it.
 
 ## Why This Is A Good Small Assembly Project
 
