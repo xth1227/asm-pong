@@ -12,13 +12,20 @@
       <div>
         <span class="label">PLAYER</span>
         <strong id="playerScore">0</strong>
+        <small id="playerStats">hits 0</small>
       </div>
       <h1>ASM PONG</h1>
       <div>
         <span class="label">CPU</span>
         <strong id="cpuScore">0</strong>
+        <small id="cpuStats">rally 0</small>
       </div>
     </header>
+
+    <div class="statusbar" aria-live="polite">
+      <span id="powerStatus">POWER: WAITING</span>
+      <span id="rallyStatus">RALLY: 0</span>
+    </div>
 
     <section class="arena-wrap">
       <canvas id="gameCanvas" width="960" height="540" aria-label="Pong playfield"></canvas>

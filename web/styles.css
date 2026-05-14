@@ -73,6 +73,26 @@ body {
   line-height: 0.9;
 }
 
+.scoreboard small {
+  color: var(--gold);
+  font-size: 0.75rem;
+}
+
+.statusbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -4px 0 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.statusbar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .arena-wrap {
   position: relative;
   overflow: hidden;
@@ -166,6 +186,11 @@ button:hover {
 
   .scoreboard {
     gap: 8px;
+  }
+
+  .statusbar {
+    display: grid;
+    gap: 4px;
   }
 
   .controls {

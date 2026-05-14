@@ -32,6 +32,13 @@ python3 -m http.server 8000
 
 Then visit `http://localhost:8000/web/`.
 
+Web features:
+
+- Goal burst effects when either side scores
+- Random powerups: wide paddle, slow ball, and double point
+- Score HUD with player hits, rally count, active power, and multiplier
+- Responsive canvas sizing for desktop and mobile windows
+
 ## Test
 
 ```bash
@@ -75,6 +82,8 @@ The `feature/miss-zoom-effect` branch adds a dramatic zoom and burst when the
 player misses the ball.
 The `feature/responsive-canvas` branch resizes the Web UI playfield and game
 objects to fit the browser window.
+The `feature/powerups-goal-scoreboard` branch adds goal effects, random
+powerups, and an expanded score HUD.
 
 ## Why This Is A Good Small Assembly Project
 

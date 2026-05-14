@@ -2,6 +2,10 @@ const canvas = document.querySelector("#gameCanvas");
 const ctx = canvas.getContext("2d");
 const playerScoreEl = document.querySelector("#playerScore");
 const cpuScoreEl = document.querySelector("#cpuScore");
+const playerStatsEl = document.querySelector("#playerStats");
+const cpuStatsEl = document.querySelector("#cpuStats");
+const powerStatusEl = document.querySelector("#powerStatus");
+const rallyStatusEl = document.querySelector("#rallyStatus");
 const overlay = document.querySelector("#overlay");
 const overlayTitle = document.querySelector("#overlayTitle");
 const startButton = document.querySelector("#startButton");
@@ -25,6 +29,11 @@ const field = {
 const keys = new Set();
 const pointer = { active: false, y: 0 };
 const particles = [];
+const POWERUPS = [
+  { kind: "wide", label: "WIDE PADDLE", color: "#5cff8d" },
+  { kind: "slow", label: "SLOW BALL", color: "#53d7ff" },
+  { kind: "double", label: "DOUBLE POINT", color: "#ffd166" },
+];
 
 const state = {
   running: false,
@@ -35,6 +44,14 @@ const state = {
   pendingResetDirection: 0,
   hits: 0,
   playerHits: 0,
+  rally: 0,
+  goalEffect: 0,
+  goalMessage: "",
+  scoreMultiplier: 1,
+  activePower: "",
+  powerTimer: 0,
+  nextPowerSpawn: 240,
+  powerup: null,
   playerScore: 0,
   cpuScore: 0,
   player: { x: 34, y: 210, width: 16, height: 118, speed: 8.2 },
@@ -62,7 +79,7 @@ function fitCanvasToWindow() {
 
   state.player.x = 34 * field.scale;
   state.player.width = Math.max(10, 16 * field.scale);
-  state.player.height = Math.max(76, 118 * field.scale);
+  state.player.height = paddleBaseHeight(state.player);
   state.player.speed = Math.max(5.2, 8.2 * field.scale);
   state.cpu.width = state.player.width;
   state.cpu.height = state.player.height;
@@ -83,6 +100,11 @@ function fitCanvasToWindow() {
     particle.vx *= ratioX;
     particle.vy *= ratioY;
   });
+  if (state.powerup) {
+    state.powerup.x *= ratioX;
+    state.powerup.y *= ratioY;
+    state.powerup.radius = Math.max(11, 15 * field.scale);
+  }
 
   state.player.y = clamp(state.player.y, wallInset(), field.height - state.player.height - wallInset());
   state.cpu.y = clamp(state.cpu.y, wallInset(), field.height - state.cpu.height - wallInset());
@@ -98,6 +120,11 @@ function wallInset() {
   return Math.max(12, 18 * field.scale);
 }
 
+function paddleBaseHeight(paddle) {
+  const boost = paddle === state.player && state.activePower === "wide" ? 1.42 : 1;
+  return Math.max(76, 118 * field.scale * boost);
+}
+
 function resetBall(direction = 1) {
   state.ball.x = field.width / 2;
   state.ball.y = field.height / 2;
@@ -107,6 +134,8 @@ function resetBall(direction = 1) {
 }
 
 function resetRound() {
+  state.player.height = paddleBaseHeight(state.player);
+  state.cpu.height = paddleBaseHeight(state.cpu);
   state.player.y = field.height / 2 - state.player.height / 2;
   state.cpu.y = field.height / 2 - state.cpu.height / 2;
   resetBall(Math.random() > 0.5 ? 1 : -1);
@@ -123,6 +152,14 @@ function resetGame() {
   state.pendingResetDirection = 0;
   state.hits = 0;
   state.playerHits = 0;
+  state.rally = 0;
+  state.goalEffect = 0;
+  state.goalMessage = "";
+  state.scoreMultiplier = 1;
+  state.activePower = "";
+  state.powerTimer = 0;
+  state.nextPowerSpawn = 180;
+  state.powerup = null;
   particles.length = 0;
   pauseButton.textContent = "Pause";
   overlay.classList.add("hidden");
@@ -133,6 +170,14 @@ function resetGame() {
 function syncScore() {
   playerScoreEl.textContent = state.playerScore;
   cpuScoreEl.textContent = state.cpuScore;
+  playerStatsEl.textContent = `hits ${state.playerHits}`;
+  cpuStatsEl.textContent = `rally ${state.rally}`;
+  powerStatusEl.textContent = state.activePower
+    ? `POWER: ${state.activePower.toUpperCase()} ${Math.ceil(state.powerTimer / 60)}s`
+    : state.powerup
+      ? `POWER: ${state.powerup.label}`
+      : "POWER: WAITING";
+  rallyStatusEl.textContent = `RALLY: ${state.rally}  MULTI: x${state.scoreMultiplier}`;
 }
 
 function finishGame(winner) {
@@ -224,6 +269,92 @@ function spawnMissEffect() {
   }
 }
 
+function spawnGoalEffect(label, color) {
+  state.goalEffect = 1;
+  state.goalMessage = label;
+  state.shake = 30;
+
+  for (let i = 0; i < 90; i++) {
+    const side = label.startsWith("PLAYER") ? field.width - wallInset() : wallInset();
+    const angle = Math.PI + (Math.random() - 0.5) * Math.PI;
+    const speed = (4 + Math.random() * 14) * field.scale;
+    particles.push({
+      x: side,
+      y: field.height / 2 + (Math.random() - 0.5) * field.height * 0.5,
+      vx: Math.cos(angle) * speed * (label.startsWith("PLAYER") ? -1 : 1),
+      vy: Math.sin(angle) * speed,
+      life: 1.2,
+      size: (3 + Math.random() * 7) * field.scale,
+      color,
+    });
+  }
+}
+
+function spawnPowerup() {
+  const template = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
+  state.powerup = {
+    ...template,
+    x: field.width * (0.34 + Math.random() * 0.32),
+    y: wallInset() * 2 + Math.random() * (field.height - wallInset() * 4),
+    radius: Math.max(11, 15 * field.scale),
+    pulse: 0,
+  };
+}
+
+function clearActivePower() {
+  state.activePower = "";
+  state.powerTimer = 0;
+  state.scoreMultiplier = 1;
+  state.player.height = paddleBaseHeight(state.player);
+  state.player.y = clamp(state.player.y, wallInset(), field.height - state.player.height - wallInset());
+}
+
+function activatePowerup(powerup) {
+  state.activePower = powerup.kind;
+  state.powerTimer = powerup.kind === "double" ? 420 : 540;
+  state.powerup = null;
+
+  if (powerup.kind === "wide") {
+    state.player.height = paddleBaseHeight(state.player);
+    state.player.y = clamp(state.player.y, wallInset(), field.height - state.player.height - wallInset());
+  } else if (powerup.kind === "slow") {
+    state.ball.vx *= 0.72;
+    state.ball.vy *= 0.72;
+  } else if (powerup.kind === "double") {
+    state.scoreMultiplier = 2;
+  }
+
+  spawnImpact(state.ball.x, state.ball.y, Math.sign(state.ball.vx) || 1, powerup.color, true);
+  syncScore();
+}
+
+function updatePowerups() {
+  if (state.activePower) {
+    state.powerTimer -= 1;
+    if (state.powerTimer <= 0) {
+      clearActivePower();
+    }
+  }
+
+  if (!state.powerup && !state.activePower) {
+    state.nextPowerSpawn -= 1;
+    if (state.nextPowerSpawn <= 0) {
+      spawnPowerup();
+      state.nextPowerSpawn = 420 + Math.floor(Math.random() * 300);
+    }
+  }
+
+  if (state.powerup) {
+    state.powerup.pulse += 0.08;
+    const ball = state.ball;
+    const dx = ball.x - state.powerup.x;
+    const dy = ball.y - state.powerup.y;
+    if (Math.hypot(dx, dy) < ball.radius + state.powerup.radius) {
+      activatePowerup(state.powerup);
+    }
+  }
+}
+
 function hitPaddle(paddle) {
   const ball = state.ball;
   const withinY = ball.y + ball.radius >= paddle.y && ball.y - ball.radius <= paddle.y + paddle.height;
@@ -236,6 +367,7 @@ function hitPaddle(paddle) {
   const offset = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2);
   const isPlayerHit = paddle === state.player;
   state.hits += 1;
+  state.rally += 1;
   if (isPlayerHit) {
     state.playerHits += 1;
   }
@@ -248,6 +380,7 @@ function hitPaddle(paddle) {
   const isPowerHit = isPlayerHit && state.playerHits >= 5;
   paddle.flash = isPowerHit ? 1.45 : 1;
   spawnImpact(ball.x, ball.y, Math.sign(ball.vx), isPlayerHit ? "#5cff8d" : "#53d7ff", isPowerHit);
+  syncScore();
   return true;
 }
 
@@ -256,6 +389,7 @@ function updateEffects() {
   state.missEffect = Math.max(0, state.missEffect - 0.018);
   state.player.flash = Math.max(0, (state.player.flash || 0) - 0.08);
   state.cpu.flash = Math.max(0, (state.cpu.flash || 0) - 0.08);
+  state.goalEffect = Math.max(0, state.goalEffect - 0.022);
 
   for (let i = particles.length - 1; i >= 0; i--) {
     const particle = particles[i];
@@ -277,6 +411,7 @@ function resetAfterMissIfReady() {
 
   const direction = state.pendingResetDirection;
   state.pendingResetDirection = 0;
+  state.goalMessage = "";
   resetBall(direction);
 }
 
@@ -303,17 +438,24 @@ function updateBall() {
     state.cpuScore += 1;
     state.hits = 0;
     state.playerHits = 0;
+    state.rally = 0;
+    clearActivePower();
     syncScore();
     if (state.cpuScore >= field.winScore) {
       finishGame("CPU");
     } else {
+      spawnGoalEffect("CPU GOAL", "#ff5f7d");
       spawnMissEffect();
       state.pendingResetDirection = 1;
     }
   } else if (ball.x > field.width + ball.radius) {
-    state.playerScore += 1;
+    const points = state.scoreMultiplier;
+    state.playerScore += points;
     state.hits = 0;
     state.playerHits = 0;
+    state.rally = 0;
+    clearActivePower();
+    spawnGoalEffect(points > 1 ? "PLAYER +2" : "PLAYER GOAL", "#5cff8d");
     syncScore();
     state.playerScore >= field.winScore ? finishGame("PLAYER") : resetBall(-1);
   }
@@ -387,6 +529,62 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+function drawPowerup() {
+  if (!state.powerup) {
+    return;
+  }
+
+  const powerup = state.powerup;
+  const pulse = 1 + Math.sin(powerup.pulse) * 0.18;
+
+  ctx.save();
+  ctx.translate(powerup.x, powerup.y);
+  ctx.scale(pulse, pulse);
+  ctx.shadowColor = powerup.color;
+  ctx.shadowBlur = 26 * field.scale;
+  ctx.fillStyle = powerup.color;
+  ctx.beginPath();
+  ctx.arc(0, 0, powerup.radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#02060a";
+  ctx.font = `800 ${Math.max(11, 14 * field.scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(powerup.kind === "wide" ? "W" : powerup.kind === "slow" ? "S" : "2", 0, 1);
+  ctx.restore();
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
+}
+
+function drawGoalEffect() {
+  if (state.goalEffect <= 0) {
+    return;
+  }
+
+  const t = state.goalEffect;
+  const pulse = Math.sin((1 - t) * Math.PI);
+
+  ctx.save();
+  ctx.globalAlpha = 0.26 * t;
+  ctx.fillStyle = state.goalMessage.startsWith("PLAYER") ? "#5cff8d" : "#ff5f7d";
+  ctx.fillRect(0, 0, field.width, field.height);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(field.width / 2, field.height / 2);
+  ctx.scale(1 + pulse * 0.22, 1 + pulse * 0.22);
+  ctx.fillStyle = "#edf6ff";
+  ctx.shadowColor = state.goalMessage.startsWith("PLAYER") ? "#5cff8d" : "#ff5f7d";
+  ctx.shadowBlur = 34 * field.scale;
+  ctx.font = `900 ${Math.max(32, 58 * field.scale)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(state.goalMessage, 0, 0);
+  ctx.restore();
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
+}
+
 function drawMissZoom() {
   if (state.missEffect <= 0) {
     return;
@@ -438,9 +636,11 @@ function draw() {
   drawCourt();
   drawPaddle(state.player, "#5cff8d");
   drawPaddle(state.cpu, "#53d7ff");
+  drawPowerup();
   drawParticles();
   drawBall();
   ctx.restore();
+  drawGoalEffect();
   drawMissZoom();
 }
 
@@ -450,9 +650,11 @@ function tick() {
       movePlayer();
       moveCpu();
       updateBall();
+      updatePowerups();
     }
     updateEffects();
     resetAfterMissIfReady();
+    syncScore();
   }
 
   draw();
