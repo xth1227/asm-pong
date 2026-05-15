@@ -29,6 +29,7 @@ const field = {
 const keys = new Set();
 const pointer = { active: false, y: 0 };
 const particles = [];
+let lastFrameTime = 0;
 const POWERUPS = [
   { kind: "wide", label: "WIDE PADDLE", color: "#5cff8d" },
   { kind: "slow", label: "SLOW BALL", color: "#53d7ff" },
@@ -220,24 +221,24 @@ function togglePause() {
   }
 }
 
-function movePlayer() {
+function movePlayer(dt) {
   if (keys.has("w") || keys.has("arrowup")) {
-    state.player.y -= state.player.speed;
+    state.player.y -= state.player.speed * dt;
   }
   if (keys.has("s") || keys.has("arrowdown")) {
-    state.player.y += state.player.speed;
+    state.player.y += state.player.speed * dt;
   }
   if (pointer.active) {
-    state.player.y += (pointer.y - state.player.height / 2 - state.player.y) * 0.36;
+    state.player.y += (pointer.y - state.player.height / 2 - state.player.y) * Math.min(1, 0.36 * dt);
   }
   state.player.height = paddleBaseHeight(state.player);
   state.player.y = clamp(state.player.y, wallInset(), field.height - state.player.height - wallInset());
 }
 
-function moveCpu() {
+function moveCpu(dt) {
   const center = state.cpu.y + state.cpu.height / 2;
   const speedPressure = Math.max(0, Math.abs(state.ball.vx) / Math.max(field.baseBallSpeed, 1) - 1);
-  if (state.ball.vx > 0 && Math.random() < 0.025 + speedPressure * 0.012) {
+  if (state.ball.vx > 0 && Math.random() < (0.025 + speedPressure * 0.012) * dt) {
     state.cpuAimDrift = (Math.random() - 0.5) * state.cpu.height * Math.min(1.2, 0.42 + speedPressure * 0.22);
   }
   const target = state.ball.vx > 0 ? state.ball.y + state.cpuAimDrift : field.height / 2;
@@ -246,7 +247,7 @@ function moveCpu() {
   const pressurePenalty = clamp(1 - speedPressure * 0.08 - edgePenalty * 0.14, 0.72, 1);
   const maxStep = state.ball.vx > 0 ? state.cpu.speed * pressurePenalty : state.cpu.speed * 0.46;
 
-  state.cpu.y += clamp(delta, -maxStep, maxStep);
+  state.cpu.y += clamp(delta, -maxStep * dt, maxStep * dt);
   state.cpu.y = clamp(state.cpu.y, wallInset(), field.height - state.cpu.height - wallInset());
 }
 
@@ -368,20 +369,20 @@ function activatePowerup(powerup) {
   syncScore();
 }
 
-function updatePowerups() {
+function updatePowerups(dt) {
   if (!state.comebackShield && state.cpuScore - state.playerScore >= 2) {
     state.comebackShield = true;
   }
 
   if (state.activePower) {
-    state.powerTimer -= 1;
+    state.powerTimer -= dt;
     if (state.powerTimer <= 0) {
       clearActivePower();
     }
   }
 
   if (!state.powerup && !state.activePower) {
-    state.nextPowerSpawn -= Math.max(1, comebackBoost() - 0.05);
+    state.nextPowerSpawn -= Math.max(1, comebackBoost() - 0.05) * dt;
     if (state.nextPowerSpawn <= 0) {
       spawnPowerup();
       state.nextPowerSpawn = 420 + Math.floor(Math.random() * 300);
@@ -389,7 +390,7 @@ function updatePowerups() {
   }
 
   if (state.powerup) {
-    state.powerup.pulse += 0.08;
+    state.powerup.pulse += 0.08 * dt;
     const ball = state.ball;
     const dx = ball.x - state.powerup.x;
     const dy = ball.y - state.powerup.y;
@@ -430,20 +431,20 @@ function hitPaddle(paddle) {
   return true;
 }
 
-function updateEffects() {
-  state.shake *= 0.82;
-  state.missEffect = Math.max(0, state.missEffect - 0.018);
-  state.player.flash = Math.max(0, (state.player.flash || 0) - 0.08);
-  state.cpu.flash = Math.max(0, (state.cpu.flash || 0) - 0.08);
-  state.goalEffect = Math.max(0, state.goalEffect - 0.022);
+function updateEffects(dt) {
+  state.shake *= Math.pow(0.82, dt);
+  state.missEffect = Math.max(0, state.missEffect - 0.018 * dt);
+  state.player.flash = Math.max(0, (state.player.flash || 0) - 0.08 * dt);
+  state.cpu.flash = Math.max(0, (state.cpu.flash || 0) - 0.08 * dt);
+  state.goalEffect = Math.max(0, state.goalEffect - 0.022 * dt);
 
   for (let i = particles.length - 1; i >= 0; i--) {
     const particle = particles[i];
-    particle.x += particle.vx;
-    particle.y += particle.vy;
-    particle.vx *= 0.96;
-    particle.vy *= 0.96;
-    particle.life -= 0.045;
+    particle.x += particle.vx * dt;
+    particle.y += particle.vy * dt;
+    particle.vx *= Math.pow(0.96, dt);
+    particle.vy *= Math.pow(0.96, dt);
+    particle.life -= 0.045 * dt;
     if (particle.life <= 0) {
       particles.splice(i, 1);
     }
@@ -461,7 +462,7 @@ function resetAfterMissIfReady() {
   resetBall(direction);
 }
 
-function updateBall() {
+function updateBall(dt) {
   const ball = state.ball;
 
   ball.trail.push({ x: ball.x, y: ball.y });
@@ -469,8 +470,8 @@ function updateBall() {
     ball.trail.shift();
   }
 
-  ball.x += ball.vx;
-  ball.y += ball.vy;
+  ball.x += ball.vx * dt;
+  ball.y += ball.vy * dt;
 
   if (ball.y - ball.radius < wallInset() || ball.y + ball.radius > field.height - wallInset()) {
     ball.vy *= -1;
@@ -706,15 +707,18 @@ function draw() {
   drawMissZoom();
 }
 
-function tick() {
+function tick(timestamp = 0) {
+  const dt = lastFrameTime === 0 ? 1 : clamp((timestamp - lastFrameTime) / (1000 / 60), 0.25, 2.5);
+  lastFrameTime = timestamp;
+
   if (state.running && !state.paused) {
     if (state.pendingResetDirection === 0) {
-      movePlayer();
-      moveCpu();
-      updateBall();
-      updatePowerups();
+      movePlayer(dt);
+      moveCpu(dt);
+      updateBall(dt);
+      updatePowerups(dt);
     }
-    updateEffects();
+    updateEffects(dt);
     resetAfterMissIfReady();
     syncScore();
   }

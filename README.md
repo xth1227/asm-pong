@@ -90,6 +90,8 @@ The `feature/player-comeback-balance` branch adds player comeback boosts,
 stronger edge-angle shots, and CPU prediction error under pressure.
 The `feature/faster-ball-speed` branch increases ball start speed, acceleration,
 and maximum speed.
+The `feature/framerate-independent-speed` branch makes Web movement use elapsed
+time so ball speed is consistent across Mac and PC refresh rates.
 
 ## Why This Is A Good Small Assembly Project
 
