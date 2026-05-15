@@ -1,0 +1,19 @@
+{
+  "name": "ASM Pong",
+  "short_name": "ASM Pong",
+  "description": "A browser-playable Pong game with powerups, responsive canvas gameplay, and frame-rate independent movement.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#080a0f",
+  "theme_color": "#080a0f",
+  "icons": [
+    {
+      "src": "icons/asm-pong-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

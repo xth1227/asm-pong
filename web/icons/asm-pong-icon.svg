@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#080a0f"/>
+  <rect x="54" y="58" width="404" height="396" rx="28" fill="#02060a" stroke="#53d7ff" stroke-width="10"/>
+  <path d="M256 88v336" stroke="#8fa6b8" stroke-width="10" stroke-dasharray="18 22" opacity=".55"/>
+  <rect x="82" y="180" width="32" height="152" rx="12" fill="#5cff8d"/>
+  <rect x="398" y="180" width="32" height="152" rx="12" fill="#53d7ff"/>
+  <circle cx="292" cy="256" r="24" fill="#ff5f7d"/>
+  <path d="M180 118h152" stroke="#ffd166" stroke-width="18" stroke-linecap="round"/>
+  <text x="256" y="398" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="62" font-weight="800" fill="#edf6ff">PONG</text>
+</svg>

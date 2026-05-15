@@ -40,6 +40,23 @@ Web features:
 - Comeback balancing with stronger player edge shots, prediction pressure on
   the CPU, and an automatic shield when the player falls behind
 - Responsive canvas sizing for desktop and mobile windows
+- PWA install support for iPhone and desktop browsers
+
+## Install On iPhone
+
+Serve the web folder from your Mac:
+
+```bash
+python3 -m http.server 8000 --bind 0.0.0.0
+```
+
+Open the Mac LAN URL on iPhone Safari, for example:
+
+```text
+http://192.168.1.23:8000/web/
+```
+
+Then use Share -> Add to Home Screen.
 
 ## Test
 
@@ -92,6 +109,8 @@ The `feature/faster-ball-speed` branch increases ball start speed, acceleration,
 and maximum speed.
 The `feature/framerate-independent-speed` branch makes Web movement use elapsed
 time so ball speed is consistent across Mac and PC refresh rates.
+The `feature/pwa-app` branch adds manifest, icon, mobile app metadata, and a
+service worker for installable Web App support.
 
 ## Why This Is A Good Small Assembly Project
 
